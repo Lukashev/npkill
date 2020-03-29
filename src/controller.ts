@@ -42,6 +42,7 @@ import { ResultsService } from './services/results.service';
 import { SpinnerService } from './services/spinner.service';
 import { UpdateService } from './services/update.service';
 import ansiEscapes from 'ansi-escapes';
+import { StringFormatService } from './services/string-format.service';
 
 export class Controller {
   private folderRoot = '';
@@ -72,6 +73,7 @@ export class Controller {
   constructor(
     private fileService: FileService,
     private spinnerService: SpinnerService,
+    private stringFormatService: StringFormatService,
     private consoleService: ConsoleService,
     private updateService: UpdateService,
     private resultsService: ResultsService,
@@ -114,12 +116,16 @@ export class Controller {
     }
 
     const exclude = options['exclude'];
+    const excludePaths = options['exclude-paths'];
 
     if (exclude && typeof exclude === 'string') {
-      this.config.exclude = this.consoleService
-        .splitData(this.consoleService.replaceString(exclude, '"', ''), ',')
-        .map(file => file.trim())
-        .filter(Boolean);
+      this.config.exclude = this.consoleService.formatExcludeArgs(exclude);
+    }
+
+    if (excludePaths && typeof excludePaths === 'string') {
+      this.config.excludePaths = this.consoleService.formatExcludeArgs(
+        excludePaths,
+      );
     }
 
     this.folderRoot = options['directory']
@@ -140,16 +146,14 @@ export class Controller {
 
     let lineCount = 0;
     OPTIONS.map((option, index) => {
-      this.printAtHelp(
-        option.arg.reduce((text, arg) => text + ', ' + arg),
-        {
-          x: UI_HELP.X_COMMAND_OFFSET,
-          y: index + UI_HELP.Y_OFFSET + lineCount,
-        },
-      );
-      const description = this.consoleService.splitWordsByWidth(
+      this.printAtHelp(option.arg.reduce((text, arg) => text + ', ' + arg), {
+        x: UI_HELP.X_COMMAND_OFFSET,
+        y: index + UI_HELP.Y_OFFSET + lineCount,
+      });
+
+      const description = this.consoleService.formatDescription(
         option.description,
-        this.stdout.columns - UI_HELP.X_DESCRIPTION_OFFSET,
+        this.stdout.columns,
       );
 
       description.map(line => {
@@ -506,7 +510,7 @@ export class Controller {
           throw error;
         }),
         mergeMap(dataFolder =>
-          from(this.consoleService.splitData(dataFolder.toString())),
+          from(this.stringFormatService.splitData(dataFolder.toString())),
         ),
         filter(path => !!path),
         map<string, IFolder>(path => ({ path, size: 0, status: 'live' })),
@@ -538,13 +542,17 @@ export class Controller {
       params['exclude'] = this.config.exclude;
     }
 
+    if (this.config.excludePaths.length > 0) {
+      params['excludePaths'] = this.config.excludePaths;
+    }
+
     return params;
   }
 
   private printFolderError(err: string) {
     if (!this.config.showErrors) return;
 
-    const messages = this.consoleService.splitData(err);
+    const messages = this.stringFormatService.splitData(err);
     messages.map(msg => this.printError(msg));
   }
 
