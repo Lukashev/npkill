@@ -1,8 +1,11 @@
 import { ICliOptions } from '../interfaces/cli-options.interface';
 import { OPTIONS } from '../constants/cli.constants';
-import { WIDTH_OVERFLOW } from '../constants/main.constants';
+import { WIDTH_OVERFLOW, UI_HELP } from '../constants/main.constants';
+import { StringFormatService } from './string-format.service';
 
 export class ConsoleService {
+  constructor(private stringFormatService: StringFormatService) {}
+
   getParameters(rawArgv: string[]): {} {
     // This needs a refactor, but fck, is a urgent update
     const argvs = this.removeSystemArgvs(rawArgv);
@@ -19,25 +22,18 @@ export class ConsoleService {
     return options;
   }
 
-  splitWordsByWidth(text: string, width: number): string[] {
-    const splitRegex = new RegExp(
-      `(?![^\\n]{1,${width}}$)([^\\n]{1,${width}})\\s`,
-      'g',
+  formatExcludeArgs(exclude: string): string[] {
+    return this.stringFormatService
+      .splitData(this.stringFormatService.replaceString(exclude, '"', ''), ',')
+      .map(file => file.trim())
+      .filter(Boolean);
+  }
+
+  formatDescription(description: string, width: number): string[] {
+    return this.stringFormatService.splitWordsByWidth(
+      description,
+      width - UI_HELP.X_DESCRIPTION_OFFSET,
     );
-    const splitText = this.replaceString(text, splitRegex, '$1\n');
-    return this.splitData(splitText);
-  }
-
-  splitData(data: string, separator = '\n'): string[] {
-    return data.split(separator);
-  }
-
-  replaceString(
-    string: string,
-    stringToReplace: string | RegExp,
-    replaceValue: string,
-  ) {
-    return string.replace(stringToReplace, replaceValue);
   }
 
   shortenText(text: string, width: number, startCut = 0): string {
