@@ -42,11 +42,16 @@ export class LinuxFilesService extends FileService {
   }
 
   private prepareFindArgs(params: IListDirParams): string[] {
-    const { path, target, exclude } = params;
+    const { path, target, exclude, excludePaths } = params;
     let args: string[] = [path];
 
+    // TODO: refactor
     if (exclude) {
       args = [...args, this.prepareExcludeArgs(exclude)].flat();
+    }
+
+    if (excludePaths) {
+      args = [...args, this.prepareExcludeArgs(exclude, '-dir')].flat();
     }
 
     args = [...args, '-name', target, '-type', 'd', '-prune'];
@@ -54,11 +59,14 @@ export class LinuxFilesService extends FileService {
     return args;
   }
 
-  private prepareExcludeArgs(exclude: string[]): string[] {
+  private prepareExcludeArgs(
+    exclude: string[],
+    excludeParam: string = '-name',
+  ): string[] {
     const excludeDirs = exclude.map((dir: string) => [
       '-not',
       '(',
-      '-name',
+      excludeParam,
       dir,
       '-prune',
       ')',
